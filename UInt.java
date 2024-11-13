@@ -1,15 +1,12 @@
-/**
- * @auth
- */
-
 import java.util.Arrays;
+import java.util.Scanner;
 
 /**
  * <h1>UInt</h1>
  * Represents an unsigned integer using a boolean array to store the binary representation.
  * Each bit is stored as a boolean value, where true represents 1 and false represents 0.
  *
- * @author Tim Fielder
+ * @auth Tim Fielder
  * @version 1.0 (Sept 30, 2024)
  */
 public class UInt {
@@ -25,7 +22,8 @@ public class UInt {
      *
      * @param toClone The UInt object to clone.
      */
-    public UInt(UInt toClone) {
+    public UInt(UInt toClone) 
+    {
         this.length = toClone.length;
         this.bits = Arrays.copyOf(toClone.bits, this.length);
     }
@@ -36,26 +34,21 @@ public class UInt {
      *
      * @param i The integer value to convert to a UInt.
      */
-    public UInt(int i) {
-        // Determine the number of bits needed to store i in binary format.
-        length = (int)(Math.ceil(Math.log(i)/Math.log(2.0)) + 1);
+    public UInt(int i) 
+    {
+        if (i < 0) 
+        {
+            throw new IllegalArgumentException("Negative values cannot be represented.");
+        }
+
+        this.length = Integer.toBinaryString(i).length();
         bits = new boolean[length];
-
-        // Convert the integer to binary and store each bit in the array.
-        for (int b = length-1; b >= 0; b--) {
-            // We use a ternary to decompose the integer into binary digits, starting with the 1s place.
-            bits[b] = i % 2 == 1;
-            // Right shift the integer to process the next bit.
+        
+        // Fill bits array with binary representation
+        for (int b = length - 1; b >= 0; b--) 
+        {
+            bits[b] = (i % 2 == 1);
             i = i >> 1;
-
-            // Deprecated analog method
-            /*int p = 0;
-            while (Math.pow(2, p) < i) {
-                p++;
-            }
-            p--;
-            bits[p] = true;
-            i -= Math.pow(2, p);*/
         }
     }
 
@@ -65,7 +58,8 @@ public class UInt {
      * @return A new UInt object that is a clone of this instance.
      */
     @Override
-    public UInt clone() {
+    public UInt clone() 
+    {
         return new UInt(this);
     }
 
@@ -75,7 +69,8 @@ public class UInt {
      * @param u The UInt object to clone.
      * @return A new UInt object that is a copy of the given object.
      */
-    public static UInt clone(UInt u) {
+    public static UInt clone(UInt u) 
+    {
         return new UInt(u);
     }
 
@@ -84,16 +79,14 @@ public class UInt {
      *
      * @return The integer value corresponding to this UInt.
      */
-    public int toInt() {
+    public int toInt()
+    {
         int t = 0;
-        // Traverse the bits array to reconstruct the integer value.
-        for (int i = 0; i < length; i++) {
-            // Again, using a ternary to now re-construct the int value, starting with the most-significant bit.
-            t = t + (bits[i] ? 1 : 0);
-            // Shift the value left for the next bit.
-            t = t << 1;
+        for (int i = 0; i < length; i++) 
+        {
+            t = (t << 1) | (bits[i] ? 1 : 0);
         }
-        return t >> 1; // Adjust for the last shift.
+        return t;
     }
 
     /**
@@ -102,7 +95,8 @@ public class UInt {
      * @param u The UInt to convert.
      * @return The int value represented by u.
      */
-    public static int toInt(UInt u) {
+    public static int toInt(UInt u) 
+    {
         return u.toInt();
     }
 
@@ -112,121 +106,190 @@ public class UInt {
      * @return The constructed String.
      */
     @Override
-    public String toString() {
-        StringBuilder s = new StringBuilder("0b");
-        // Construct the String starting with the most-significant bit.
-        for (int i = 0; i < length; i++) {
-            // Again, we use a ternary here to convert from true/false to 1/0
-            s.append(bits[i] ? "1" : "0");
+    public String toString() 
+    {
+        StringBuilder s = new StringBuilder("0b0");
+        for (boolean bit : bits) 
+        {
+            s.append(bit ? "1" : "0");
         }
         return s.toString();
     }
 
-    /**
-     * Performs a logical AND operation using this.bits and u.bits, with the result stored in this.bits.
-     *
-     * @param u The UInt to AND this against.
-     */
-    public void and(UInt u) {
-        // We want to traverse the bits arrays to perform our AND operation.
-        // But keep in mind that the arrays may not be the same length.
-        // So first we use Math.min to determine which is shorter.
-        // Then we need to align the two arrays at the 1s place, which we accomplish by indexing them at length-i-1.
-        for (int i = 0; i < Math.min(this.length, u.length); i++) {
-            this.bits[this.length - i - 1] =
-                    this.bits[this.length - i - 1] &
-                            u.bits[u.length - i - 1];
+    private static void alignLengths(UInt a, UInt b) 
+    {
+        int maxLength = Math.max(a.length, b.length);
+        a.extendBits(maxLength - a.length);
+        b.extendBits(maxLength - b.length);
+    }
+
+    private void extendBits(int extraBits) 
+    {
+        boolean[] newBits = new boolean[length + extraBits];
+        System.arraycopy(bits, 0, newBits, extraBits, length);
+        bits = newBits;
+        length += extraBits;
+    }
+
+    public void and(UInt u) 
+    {
+        alignLengths(this, u);
+        for (int i = 0; i < this.length; i++) 
+        {
+            this.bits[i] = this.bits[i] & u.bits[i];
         }
-        // In the specific case that this.length is greater, there are additional elements of
-        //   this.bits that are not getting ANDed against anything.
-        // Depending on the implementation, we may want to treat the operation as implicitly padding
-        //   the u.bits array to match the length of this.bits, in which case what we actually
-        //   perform is simply setting the remaining indices of this.bits to false.
-        // Note that while this logic is helpful for the AND operation if we want to use this
-        //   implementation (implicit padding), it is never necessary for the OR and XOR operations.
-        if (this.length > u.length) {
-            for (int i = u.length; i < this.length; i++) {
-                this.bits[this.length - i - 1] = false;
+    }
+
+    public static UInt and(UInt a, UInt b) 
+    {
+        UInt result = a.clone();
+        result.and(b);
+        return result;
+    }
+
+    public void or(UInt u) 
+    {
+        alignLengths(this, u);
+        for (int i = 0; i < this.length; i++) 
+        {
+            this.bits[i] = this.bits[i] | u.bits[i];
+        }
+    }
+
+    public static UInt or(UInt a, UInt b) 
+    {
+        UInt result = a.clone();
+        result.or(b);
+        return result;
+    }
+
+    public void xor(UInt u) 
+    {
+        alignLengths(this, u);
+        for (int i = 0; i < this.length; i++) 
+        {
+            this.bits[i] = this.bits[i] ^ u.bits[i];
+        }
+    }
+
+    public static UInt xor(UInt a, UInt b) 
+    {
+        UInt result = a.clone();
+        result.xor(b);
+        return result;
+    }
+
+    public void add(UInt u) 
+    {
+        alignLengths(this, u);
+        int carry = 0;
+        for (int i = this.length - 1; i >= 0; i--) 
+        {
+            int sum = (this.bits[i] ? 1 : 0) + (u.bits[i] ? 1 : 0) + carry;
+            this.bits[i] = (sum % 2 == 1);
+            carry = sum / 2;
+        }
+        if (carry > 0) {
+            extendBits(1);
+            this.bits[0] = true;
+        }
+    }
+
+    public static UInt add(UInt a, UInt b) 
+    {
+        UInt result = a.clone();
+        result.add(b);
+        return result;
+    }
+
+    public void negate() 
+    {
+        for (int i = 0; i < this.length; i++) 
+        {
+            this.bits[this.length - i - 1] = !this.bits[this.length - i - 1];
+        }
+        UInt one = new UInt(1);
+        this.add(one);
+    }
+
+    public void sub(UInt u) 
+    {
+        UInt negated = u.clone();
+        negated.negate();
+        this.add(negated);
+    }
+
+    public static UInt sub(UInt a, UInt b) 
+    {
+        UInt result = a.clone();
+        result.sub(b);
+        return result;
+    }
+
+    public void mul(UInt u) 
+    {
+        int m = this.toInt();
+        int q = u.toInt();
+        int result = 0;
+
+        for (int i = 0; i < Math.max(this.length, u.length); i++) 
+        {
+            if ((q & 1) == 1) 
+            {
+                result += m << i;
             }
+            q >>= 1;
+        }
+
+        this.length = Integer.toBinaryString(result).length();
+        bits = new boolean[length];
+        for (int i = length - 1; i >= 0; i--) 
+        {
+            bits[i] = (result & 1) == 1;
+            result >>= 1;
         }
     }
 
-    /**
-     * Accepts a pair of UInt objects and uses a temporary clone to safely AND them together (without changing either).
-     *
-     * @param a The first UInt
-     * @param b The second UInt
-     * @return The temp object containing the result of the AND op.
-     */
-    public static UInt and(UInt a, UInt b) {
-        UInt temp = a.clone();
-        temp.and(b);
-        return temp;
+    public static UInt mul(UInt a, UInt b) 
+    {
+        UInt result = a.clone();
+        result.mul(b);
+        return result;
     }
 
-    public void or(UInt u) {
-        // TODO Complete the bitwise logical OR method
-        return;
-    }
+    public static void main(String[] args) 
+    {
+        Scanner scanner = new Scanner(System.in);
 
-    public static UInt or(UInt a, UInt b) {
-        // TODO Complete the static OR method
-        return null;
-    }
+        System.out.print("Enter the first unsigned integer: ");
+        int firstValue = scanner.nextInt();
+        UInt a = new UInt(firstValue);
 
-    public void xor(UInt u) {
-        // TODO Complete the bitwise logical XOR method
-        return;
-    }
+        System.out.print("Enter the second unsigned integer: ");
+        int secondValue = scanner.nextInt();
+        UInt b = new UInt(secondValue);
 
-    public static UInt xor(UInt a, UInt b) {
-        // TODO Complete the static XOR method
-        return null;
-    }
+        System.out.println("a: " + a);
+        System.out.println("b: " + b);
 
-    public void add(UInt u) {
-        // TODO Using a ripple-carry adder, perform addition using a passed UINT object
-        // The result will be stored in this.bits
-        // You will likely need to create a couple of helper methods for this.
-        // Note this one, like the bitwise ops, also needs to be aligned on the 1s place.
-        // Also note this may require increasing the length of this.bits to contain the result.
-        return;
-    }
+        UInt sum = UInt.add(a, b);
+        System.out.println("Sum: " + sum);
 
-    public static UInt add(UInt a, UInt b) {
-        // TODO A static change-safe version of add, should return a temp UInt object like the bitwise ops.
-        return null;
-    }
+        UInt difference = UInt.sub(a, b);
+        System.out.println("Difference: " + difference);
 
-    public void negate() {
-        // TODO You'll need a way to perform 2's complement negation
-        // The add() method will be helpful with this.
-    }
+        UInt product = UInt.mul(a, b);
+        System.out.println("Product: " + product);
 
-    public void sub(UInt u) {
-        // TODO Using negate() and add(), perform in-place subtraction
-        // As this class is supposed to handle only unsigned values,
-        //   if the result of the subtraction operation would be a negative number then it should be coerced to 0.
-        return;
-    }
+        UInt andResult = UInt.and(a, b);
+        System.out.println("AND: " + andResult);
 
-    public static UInt sub(UInt a, UInt b) {
-        // TODO And a static change-safe version of sub
-        return null;
-    }
+        UInt orResult = UInt.or(a, b);
+        System.out.println("OR: " + orResult);
 
-    public void mul(UInt u) {
-        // TODO Using Booth's algorithm, perform multiplication
-        // This one will require that you increase the length of bits, up to a maximum of X+Y.
-        // Having negate() and add() will obviously be useful here.
-        // Also note the Booth's always treats binary values as if they are signed,
-        //   while this class is only intended to use unsigned values.
-        // This means that you may need to pad your bits array with a leading 0 if it's not already long enough.
-        return;
-    }
+        UInt xorResult = UInt.xor(a, b);
+        System.out.println("XOR: " + xorResult);
 
-    public static UInt mul(UInt a, UInt b) {
-        // TODO A static, change-safe version of mul
-        return null;
+        scanner.close();
     }
 }
